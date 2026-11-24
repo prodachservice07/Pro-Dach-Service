@@ -1,6 +1,8 @@
 <!DOCTYPE html>
 <html lang="de-AT">
 <head>
+<!-- Google Tag Manager / Google tag (GTM-W7ML2TXJ) -->
+<script async src="https://www.googletagmanager.com/gtm.js?id=GTM-W7ML2TXJ"></script>
 <meta charset="UTF-8">
 <!-- Google tag (gtag.js) -->
 <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18254391988"></script>
@@ -1214,7 +1216,7 @@ section{position:relative}
   display:none;background:rgba(40,180,99,.16);border:1px solid #28b463;color:#7be3a0;
   padding:15px 18px;border-radius:8px;margin-top:16px;font-weight:500;
 }
-.form-ok.show{display:block;animation:wordIn .4s var(--ease) forwards;opacity:0}
+.form-ok.show{display:block;animation:wordIn .4s var(--ease) forwards;opacity:0}.form-ok.err{background:rgba(220,70,60,.14);border-color:#d9534f;color:#ff9b94}.form-ok a{color:inherit;text-decoration:underline;font-weight:700}.light-form .form-ok{color:#1d7a45}.light-form .form-ok.err{color:#b3261e}button.is-sending{opacity:.85;cursor:wait}button.is-sent{background:#28b463!important;border-color:#28b463!important;color:#fff!important}.btn-spin{width:16px;height:16px;border:2px solid rgba(255,255,255,.4);border-top-color:#fff;border-radius:50%;display:inline-block;animation:btnSpin .7s linear infinite;margin-right:4px}@keyframes btnSpin{to{transform:rotate(360deg)}}
 /* light form variant */
 .form.light-form .field label{color:var(--ink-soft)}
 .form.light-form .field input,.form.light-form .field textarea{border-color:var(--gray-line);color:var(--ink)}
@@ -1909,6 +1911,7 @@ section{position:relative}
           <figure class="proj-card"><img src="assets/projects/p01.jpeg" alt="Dachdeckung &amp; Dachsanierung – Referenzprojekt von Pro Dach Service in Österreich" loading="lazy" decoding="async"></figure>
           <figure class="proj-card"><img src="assets/projects/p02.jpeg" alt="Dachdeckung &amp; Dachsanierung – Referenzprojekt von Pro Dach Service in Österreich" loading="lazy" decoding="async"></figure>
           <figure class="proj-card"><img src="assets/projects/p03.jpeg" alt="Dachdeckung &amp; Dachsanierung – Referenzprojekt von Pro Dach Service in Österreich" loading="lazy" decoding="async"></figure>
+          <figure class="proj-card"><img src="assets/projects/p04.jpeg" alt="Dachdeckung &amp; Dachsanierung – Referenzprojekt von Pro Dach Service in Österreich" loading="lazy" decoding="async"></figure>
           <figure class="proj-card"><img src="assets/projects/p05.jpeg" alt="Dachdeckung &amp; Dachsanierung – Referenzprojekt von Pro Dach Service in Österreich" loading="lazy" decoding="async"></figure>
           <figure class="proj-card"><img src="assets/projects/p06.jpeg" alt="Dachdeckung &amp; Dachsanierung – Referenzprojekt von Pro Dach Service in Österreich" loading="lazy" decoding="async"></figure>
           <figure class="proj-card"><img src="assets/projects/p07.jpeg" alt="Dachdeckung &amp; Dachsanierung – Referenzprojekt von Pro Dach Service in Österreich" loading="lazy" decoding="async"></figure>
@@ -2598,8 +2601,8 @@ section{position:relative}
   }
 
   /* ---------- router ---------- */
-  function route(){
-    var hash = (location.hash || "#startseite").replace("#","");
+  function route(forced){
+    var hash = (typeof forced === "string" && forced) || (location.hash || "#startseite").replace("#","");
     if(PAGES.indexOf(hash) === -1) hash = "startseite";
     var pages = document.querySelectorAll(".page");
     var current = document.querySelector(".page.active");
@@ -2742,68 +2745,72 @@ section{position:relative}
       sel.querySelectorAll("li").forEach(function(o){ o.classList.remove("active"); });
     });
   }
-  function mailtoFallback(data){
+  function mailtoLink(data){
     var lines = [];
     if(data.name) lines.push("Name: " + data.name);
     if(data.tel) lines.push("Telefon: " + data.tel);
     if(data.email) lines.push("E-Mail: " + data.email);
     if(data.leistung) lines.push("Leistung: " + data.leistung);
     if(data.msg) lines.push("\nNachricht:\n" + data.msg);
-    var subject = "Neue Anfrage – Pro Dach Service";
-    var body = lines.join("\n");
-    window.location.href = "mailto:" + TARGET_EMAIL +
-      "?subject=" + encodeURIComponent(subject) +
-      "&body=" + encodeURIComponent(body);
+    return "mailto:" + TARGET_EMAIL + "?subject=" + encodeURIComponent("Neue Anfrage – Pro Dach Service") + "&body=" + encodeURIComponent(lines.join("\n"));
   }
   document.querySelectorAll("[data-form]").forEach(function(f){
+    var ok = f.querySelector(".form-ok");
+    var okHTML = ok ? ok.innerHTML : "";
+    var btn = f.querySelector("button[type=submit]");
+    var btnHTML = btn ? btn.innerHTML : "";
+    var busy = false;
+    function showMsg(html, isErr){
+      if(!ok) return;
+      ok.innerHTML = html;
+      ok.classList.toggle("err", !!isErr);
+      ok.classList.remove("show"); void ok.offsetWidth; ok.classList.add("show");
+      var r = ok.getBoundingClientRect();
+      if(r.bottom > window.innerHeight || r.top < 0){
+        window.scrollTo({top: window.scrollY + r.top - window.innerHeight/2, behavior:"smooth"});
+      }
+    }
     f.addEventListener("submit", function(e){
       e.preventDefault();
+      if(busy) return;
       if(!f.checkValidity()){ f.reportValidity(); return; }
-      var ok = f.querySelector(".form-ok");
-      var btn = f.querySelector("button[type=submit]");
-      var btnTxt = btn ? btn.textContent : "";
-
-      // collect fields
       var data = {};
       f.querySelectorAll("input,textarea").forEach(function(i){
         if(!i.name) return;
-        if(i.name === "leistung" || (i.type === "hidden" && /leistung/i.test(i.name))) data.leistung = i.value;
-        else data[i.name] = i.value;
+        if(/leistung/i.test(i.name)) data.leistung = i.value; else data[i.name] = i.value;
       });
-
-      if(btn){ btn.disabled = true; btn.textContent = "Senden …"; }
-
-      var payload = {
-        name: data.name || "",
-        Telefon: data.tel || "",
-        email: data.email || "",
-        Leistung: data.leistung || "",
-        Nachricht: data.msg || "",
-        _subject: "Neue Anfrage – Pro Dach Service",
-        _template: "table"
-      };
-
+      busy = true;
+      if(ok) ok.classList.remove("show");
+      if(btn){ btn.disabled = true; btn.classList.add("is-sending"); btn.innerHTML = '<span class="btn-spin"></span>Wird gesendet …'; }
+      var ctrl = window.AbortController ? new AbortController() : null;
+      var timer = setTimeout(function(){ if(ctrl) ctrl.abort(); }, 12000);
       fetch("https://formsubmit.co/ajax/" + TARGET_EMAIL, {
         method: "POST",
         headers: { "Content-Type": "application/json", "Accept": "application/json" },
-        body: JSON.stringify(payload)
+        body: JSON.stringify({
+          name: data.name || "", Telefon: data.tel || "", email: data.email || "",
+          Leistung: data.leistung || "", Nachricht: data.msg || "",
+          _subject: "Neue Anfrage – Pro Dach Service", _template: "table"
+        }),
+        signal: ctrl ? ctrl.signal : undefined
       })
-      .then(function(r){ if(!r.ok) throw new Error("bad status"); return r.json(); })
+      .then(function(r){ return r.json().catch(function(){ return {}; }).then(function(j){ if(!r.ok || String(j.success) === "false") throw new Error(j.message || "failed"); }); })
       .then(function(){
-        if(ok) ok.classList.add("show");
         resetForm(f);
-        setTimeout(function(){ if(ok) ok.classList.remove("show"); }, 6000);
+        if(btn){ btn.classList.remove("is-sending"); btn.classList.add("is-sent"); btn.innerHTML = "✓ Gesendet"; }
+        showMsg(okHTML, false);
+        setTimeout(function(){
+          if(btn){ btn.classList.remove("is-sent"); btn.innerHTML = btnHTML; btn.disabled = false; }
+          if(ok) ok.classList.remove("show");
+          busy = false;
+        }, 5000);
       })
       .catch(function(){
-        // service unreachable → open visitor's mail client pre-filled
-        mailtoFallback(data);
-        if(ok) ok.classList.add("show");
-        resetForm(f);
-        setTimeout(function(){ if(ok) ok.classList.remove("show"); }, 6000);
+        if(btn){ btn.classList.remove("is-sending"); btn.innerHTML = btnHTML; btn.disabled = false; }
+        showMsg('Die Anfrage konnte nicht gesendet werden. Bitte <a href="' + mailtoLink(data) + '">per E-Mail senden</a> oder rufen Sie uns an: <a href="tel:+4368181411903">+43 681 8141 1903</a>.', true);
+        busy = false;
       })
-      .finally(function(){
-        if(btn){ btn.disabled = false; btn.textContent = btnTxt; }
-      });
+      .finally(function(){ clearTimeout(timer); });
     });
   });
 
@@ -2832,7 +2839,19 @@ section{position:relative}
   })();
 
   /* ---------- init ---------- */
-  window.addEventListener("hashchange", route);
+  /* switch sections on click ourselves, so navigation works even where the host blocks hash changes (e.g. inside an embed/preview) */
+  document.addEventListener("click", function(e){
+    if(e.button !== 0 || e.metaKey || e.ctrlKey || e.shiftKey || e.altKey) return;
+    var a = e.target && e.target.closest ? e.target.closest('a[href^="#"]') : null;
+    if(!a) return;
+    var t = a.getAttribute("href").slice(1);
+    if(PAGES.indexOf(t) === -1) return;
+    e.preventDefault();
+    try { if(location.hash !== "#"+t) history.pushState(null, "", "#"+t); } catch(err){}
+    route(t);
+  }, true);
+  window.addEventListener("hashchange", function(){ route(); });
+  window.addEventListener("popstate", function(){ route(); });
   window.addEventListener("load", function(){ checkReveals(); updateProgress(); });
   onScroll();
   route();
